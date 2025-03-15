@@ -1,0 +1,74 @@
+name: Build and Deploy Employee Service                                 #####name to this github-action workflow
+
+on:
+  push:
+    branches:
+      - main                                                           #### Trigger on pushes to the main branch
+    paths:
+      - 'employee-service/**'                                          ##### Trigger when files in employee-service folder change
+      - 'helmcharts/employee-service/**'
+
+jobs:                                                                    
+  build-test-ubuntu:                                                   ##### job 1 name any u gave and 
+    runs-on: ubuntu-latest                                             ##### set base image for job 1 below
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+        
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v4                               #### This part indicates that you're using an action that's maintained by an individual user or a third-party organization (stCarolas in this case). GitHub Actions allows anyone to create and share actions.
+        with:                                                        #### with:       Provides input parameters to the action.
+          maven-version: '3.8.6' # Or your desired version
+
+      - name: Maven Build and Test
+        run: mvn clean install -DskipTests=false                     #####run: executes a single command.
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+     - name: Push Docker image to ECR
+       run: |
+         docker push ${{ secrets.ECR_REPOSITORY }}:${GITHUB_SHA::7}
+         docker push ${{ secrets.ECR_REPOSITORY }}:latest    
+
+
+
+      - name: Build Docker Image
+        run: |                                                                            #### run: | allows you to write multiple commands, one per line. 2 space pudhe run chya indentation kar
+          cd employee-service # Navigate to the directory containing the Dockerfile
+          docker build -t employee-service-image:${GITHUB_SHA::7} . # Build the Docker image
+          docker images # list the images that were created.
+
+
+
+####ha extra code fakt 2 job deta yetat davay dilay
+  build-test-windows:                                                   #### job 2 & image
+    runs-on: windows-latest               
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3                                       ####  This part indicates that you're using an action that's maintained by the official GitHub Actions team.
+                                                                        #### @v3: This specifies the version of the setup-java action.
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+
+
+  
